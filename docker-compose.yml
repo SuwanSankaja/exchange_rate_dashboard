@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # The Node.js application service
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    # Pass the .env file to the container for environment variables
+    env_file:
+      - .env
+    # Make our app depend on the mongo service. 
+    # The app will not start until the mongo service is healthy.
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - confinix-net
+
+  # The MongoDB database service
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    # Healthcheck ensures the database is ready before the app connects
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - confinix-net
+
+# Define the network for services to communicate
+networks:
+  confinix-net:
+    driver: bridge
+
+# Define a volume to persist database data
+volumes:
+  mongo-data:
+    driver: local
