@@ -193,7 +193,31 @@
             if (!latestData || !latestData.market_statistics) { return; }
 
             const { people_selling, people_buying } = latestData.market_statistics;
-            const lastUpdatedDate = dayjs(latestData.last_updated?.$date || latestData.date);
+            
+            // Get the timestamp from database (should already be in Sri Lankan time)
+            let lastUpdatedTimestamp = null;
+            
+            // Try different possible formats of last_updated from MongoDB
+            if (latestData.last_updated) {
+                if (typeof latestData.last_updated === 'string') {
+                    lastUpdatedTimestamp = latestData.last_updated;
+                } else if (latestData.last_updated.$date) {
+                    lastUpdatedTimestamp = latestData.last_updated.$date;
+                } else if (typeof latestData.last_updated === 'object' && latestData.last_updated.getTime) {
+                    lastUpdatedTimestamp = latestData.last_updated.toISOString();
+                }
+            }
+            
+            // Fallback to data_completeness.update_timestamp if available
+            if (!lastUpdatedTimestamp) {
+                if (latestData.data_completeness?.update_timestamp) {
+                    if (typeof latestData.data_completeness.update_timestamp === 'string') {
+                        lastUpdatedTimestamp = latestData.data_completeness.update_timestamp;
+                    } else if (latestData.data_completeness.update_timestamp.$date) {
+                        lastUpdatedTimestamp = latestData.data_completeness.update_timestamp.$date;
+                    }
+                }
+            }
 
             const bestSellingRate = people_selling?.max?.toFixed(4);
             document.getElementById('best-selling-rate').textContent = bestSellingRate ? `LKR ${bestSellingRate}` : 'N/A';
@@ -207,7 +231,40 @@
             const avgBuyingRate = people_buying?.avg?.toFixed(4);
             document.getElementById('avg-buying-rate').textContent = avgBuyingRate ? `Avg Buying Rate: LKR ${avgBuyingRate}` : '';
             
-            document.getElementById('last-updated').textContent = `Last updated: ${lastUpdatedDate.format('YYYY-MM-DD HH:mm')}`;
+            // Display the last updated time directly from database (assuming it's already in Sri Lankan time)
+            if (lastUpdatedTimestamp) {
+                // Parse the timestamp and get current Sri Lankan time
+                const lastUpdated = dayjs(lastUpdatedTimestamp);
+                const nowSriLanka = dayjs(); // Assuming your system/browser is set to Sri Lankan time
+                
+                // Calculate time difference
+                const diffMinutes = nowSriLanka.diff(lastUpdated, 'minute');
+                const diffHours = nowSriLanka.diff(lastUpdated, 'hour');
+                const diffDays = nowSriLanka.diff(lastUpdated, 'day');
+                
+                let timeAgoText = '';
+                if (diffMinutes < 1) {
+                    timeAgoText = 'UTC time';
+                } else if (diffMinutes < 60) {
+                    timeAgoText = `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+                } else if (diffHours < 24) {
+                    timeAgoText = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                } else if (diffDays < 7) {
+                    timeAgoText = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                } else {
+                    timeAgoText = lastUpdated.format('YYYY-MM-DD');
+                }
+                
+                // Format the display - assume database timestamp is already in Sri Lankan time
+                const displayTime = lastUpdated.format('YYYY-MM-DD HH:mm');
+                document.getElementById('last-updated').textContent = 
+                    `Last updated: ${displayTime} (${timeAgoText})`;
+            } else {
+                // Fallback to using the date field
+                const dateOnly = dayjs(latestData.date);
+                document.getElementById('last-updated').textContent = 
+                    `Last updated: ${dateOnly.format('YYYY-MM-DD')}`;
+            }
         }
         
         function setupBankSelector() {
