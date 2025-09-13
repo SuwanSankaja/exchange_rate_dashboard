@@ -4,7 +4,6 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-// The PORT variable is no longer needed in a serverless environment
 const uri = process.env.MONGO_URI;
 const dbName = process.env.DB_NAME;
 const collectionPrefix = process.env.COLLECTION_PREFIX || 'daily_';
@@ -12,7 +11,6 @@ const collectionPrefix = process.env.COLLECTION_PREFIX || 'daily_';
 // Validate essential environment variables
 if (!uri || !dbName) {
     console.error("Fatal: Missing required environment variables (MONGO_URI, DB_NAME).");
-    // In a serverless function, throwing an error is better than process.exit
     throw new Error("Missing required environment variables.");
 }
 
@@ -30,13 +28,15 @@ async function connectToDatabase() {
         console.log("Successfully connected to MongoDB.");
     } catch (error) {
         console.error("Could not connect to MongoDB.", error);
-        // Throw error to be caught by the API handler
         throw new Error("Could not connect to the database.");
     }
 }
 
 // --- Middleware ---
 app.use(cors());
+
+// Serve static files from the public directory
+app.use(express.static('public'));
 
 // --- API Endpoint ---
 app.get('/api/rates/:currency', async (req, res) => {
@@ -61,6 +61,18 @@ app.get('/api/rates/:currency', async (req, res) => {
     }
 });
 
+// Health check endpoint (optional but useful)
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// For local development only
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
 // Export the app for Vercel to use
 module.exports = app;
-
