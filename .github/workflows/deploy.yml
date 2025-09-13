@@ -1,4 +1,4 @@
-# Name of the workflow
+# Name of the workflow process
 name: Deploy Frontend to GitHub Pages
 
 # Run this workflow on every push to the main branch
