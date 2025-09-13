@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confinix Exchange Rate Tracker</title>
+    <link rel="icon" type="image/png" href="/confinix_logo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #loader { border-top-color: #3498db; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <!-- Responsive font size for the main title -->
+            <h1 class="text-3xl sm:text-4xl font-bold text-white">Confinix Exchange Rate Tracker</h1>
+            <!-- Responsive font size for the subtitle -->
+            <p id="dashboard-subtitle" class="text-gray-400 mt-2 text-sm sm:text-base">Live rates for international currencies in Sri Lanka</p>
+        </header>
+
+        <!-- Currency Selector -->
+        <div class="flex justify-center mb-8">
+            <div id="currency-selector" class="flex flex-wrap justify-center space-x-1 bg-gray-800 rounded-lg p-1 border border-gray-700">
+                <button data-currency="aud" class="currency-btn bg-gray-900 text-white py-2 px-4 sm:px-5 rounded-md text-sm font-medium">AUD</button>
+                <button data-currency="usd" class="currency-btn text-gray-400 hover:bg-gray-700 py-2 px-4 sm:px-5 rounded-md text-sm font-medium">USD</button>
+                <button data-currency="eur" class="currency-btn text-gray-400 hover:bg-gray-700 py-2 px-4 sm:px-5 rounded-md text-sm font-medium">EUR</button>
+                <button data-currency="gbp" class="currency-btn text-gray-400 hover:bg-gray-700 py-2 px-4 sm:px-5 rounded-md text-sm font-medium">GBP</button>
+            </div>
+        </div>
+
+        <div id="loading-state" class="text-center py-10">
+            <div id="loader" class="w-12 h-12 rounded-full border-4 border-gray-700 mx-auto"></div>
+            <p class="mt-4 text-gray-400">Loading Exchange Rate Data...</p>
+        </div>
+        <div id="error-state" class="hidden text-center bg-red-900/50 border border-red-500/50 text-red-300 p-6 rounded-lg">
+            <h2 class="font-semibold text-lg">Failed to Load Data</h2>
+            <p id="error-message" class="mt-2">Could not connect to the backend server.</p>
+        </div>
+
+        <div id="dashboard-content" class="hidden">
+            <section id="today-rates" class="mb-8">
+                <h2 class="text-xl sm:text-2xl font-semibold text-white mb-4">Today's Best Rates</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-800 rounded-lg p-6 shadow-lg border border-green-500/50 flex flex-col">
+                        <h3 class="font-semibold text-md sm:text-lg text-green-400">Best Selling Rate (Your Perspective)</h3>
+                        <p class="text-gray-400 text-xs sm:text-sm mb-3">The highest rate a bank will buy from you.</p>
+                        <!-- Responsive font size for the rate -->
+                        <p id="best-selling-rate" class="text-3xl sm:text-4xl font-bold text-white mt-auto">-</p>
+                        <p id="best-selling-bank" class="text-green-400 mt-1 text-sm">-</p>
+                        <p id="avg-selling-rate" class="text-md sm:text-lg text-gray-400 mt-2">-</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-6 shadow-lg border border-blue-500/50 flex flex-col">
+                        <h3 class="font-semibold text-md sm:text-lg text-blue-400">Best Buying Rate (Your Perspective)</h3>
+                        <p class="text-gray-400 text-xs sm:text-sm mb-3">The lowest rate a bank will sell to you.</p>
+                        <!-- Responsive font size for the rate -->
+                        <p id="best-buying-rate" class="text-3xl sm:text-4xl font-bold text-white mt-auto">-</p>
+                        <p id="best-buying-bank" class="text-blue-400 mt-1 text-sm">-</p>
+                        <p id="avg-buying-rate" class="text-md sm:text-lg text-gray-400 mt-2">-</p>
+                    </div>
+                </div>
+                <p id="last-updated" class="text-center text-sm text-gray-500 mt-4"></p>
+            </section>
+
+            <section class="bg-gray-800 rounded-lg p-4 md:p-6 shadow-lg">
+                <h2 class="text-xl sm:text-2xl font-semibold text-white mb-4">Historical Rate Analysis (Bank's Perspective)</h2>
+                <!-- Make controls stack on mobile and spread out on larger screens -->
+                <div class="flex flex-col sm:flex-row flex-wrap gap-4 justify-between items-center mb-6">
+                    <div id="rate-type-selector" class="flex bg-gray-700 rounded-lg p-1">
+                        <button data-rate-type="buying_rate" class="rate-type-btn bg-gray-900 text-white py-2 px-4 rounded-md text-sm font-medium">Buying Rate</button>
+                        <button data-rate-type="selling_rate" class="rate-type-btn text-gray-300 py-2 px-4 rounded-md text-sm font-medium">Selling Rate</button>
+                    </div>
+                    <div id="time-range-selector" class="flex flex-wrap justify-center gap-2">
+                        <button data-range="7d" class="time-range-btn bg-blue-600 py-1 px-3 rounded text-xs">7D</button>
+                        <button data-range="1m" class="time-range-btn bg-gray-700 hover:bg-gray-600 py-1 px-3 rounded text-xs">1M</button>
+                        <button data-range="3m" class="time-range-btn bg-gray-700 hover:bg-gray-600 py-1 px-3 rounded text-xs">3M</button>
+                        <button data-range="6m" class="time-range-btn bg-gray-700 hover:bg-gray-600 py-1 px-3 rounded text-xs">6M</button>
+                        <button data-range="1y" class="time-range-btn bg-gray-700 hover:bg-gray-600 py-1 px-3 rounded text-xs">1Y</button>
+                        <button data-range="all" class="time-range-btn bg-gray-700 hover:bg-gray-600 py-1 px-3 rounded text-xs">All</button>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <h3 class="text-md font-semibold mb-2">Select Banks:</h3>
+                    <!-- This grid is already responsive, which is good -->
+                    <div id="bank-selector" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-sm"></div>
+                </div>
+                <!-- Set an explicit aspect ratio for the chart container for better mobile rendering -->
+                <div class="relative h-64 md:h-96"> <canvas id="rateChart"></canvas> </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        let originalData = [];
+        let selectedRateType = 'buying_rate';
+        let selectedTimeRange = '7d';
+        let selectedBanks = [];
+        let currentCurrency = 'aud';
+        const allBankNames = new Set();
+        const chartColors = ['#34d399', '#60a5fa', '#f87171', '#fbbf24', '#a78bfa', '#f472b6', '#4ade80', '#2dd4bf', '#818cf8', '#fb923c'];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboardForCurrency(currentCurrency);
+            setupCurrencySelector();
+            setupControls();
+        });
+
+        function setupCurrencySelector() {
+            document.getElementById('currency-selector').addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const newCurrency = e.target.dataset.currency;
+                    if (newCurrency !== currentCurrency) {
+                        currentCurrency = newCurrency;
+                        loadDashboardForCurrency(newCurrency);
+                        document.querySelectorAll('.currency-btn').forEach(btn => {
+                            btn.classList.remove('bg-gray-900', 'text-white');
+                            btn.classList.add('text-gray-400', 'hover:bg-gray-700');
+                        });
+                        e.target.classList.add('bg-gray-900', 'text-white');
+                        e.target.classList.remove('text-gray-400', 'hover:bg-gray-700');
+                    }
+                }
+            });
+        }
+
+        async function loadDashboardForCurrency(currency) {
+            const loadingEl = document.getElementById('loading-state');
+            const errorEl = document.getElementById('error-state');
+            const errorMessageEl = document.getElementById('error-message');
+            const dashboardEl = document.getElementById('dashboard-content');
+            
+            loadingEl.classList.remove('hidden');
+            dashboardEl.classList.add('hidden');
+            errorEl.classList.add('hidden');
+            
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+            allBankNames.clear();
+            originalData = [];
+
+            try {
+                const response = await fetch(`/api/rates/${currency}`);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server responded with ${response.status}: ${errorText}`);
+                }
+                const rawData = await response.json();
+                
+                if (!rawData || rawData.length === 0) {
+                    throw new Error(`No data available for ${currency.toUpperCase()}.`);
+                }
+
+                originalData = rawData.map(d => ({
+                    ...d,
+                    date: dayjs(d.date).format('YYYY-MM-DD')
+                })).sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
+
+                originalData.forEach(d => {
+                    if (d.bank_rates) Object.keys(d.bank_rates).forEach(bank => allBankNames.add(bank));
+                });
+
+                initializeUI();
+                
+                loadingEl.classList.add('hidden');
+                dashboardEl.classList.remove('hidden');
+
+            } catch (error) {
+                console.error(`Dashboard initialization failed for ${currency}:`, error);
+                errorMessageEl.textContent = `Could not load data for ${currency.toUpperCase()}. Details: ${error.message}`;
+                loadingEl.classList.add('hidden');
+                errorEl.classList.remove('hidden');
+            }
+        }
+        
+        function initializeUI() {
+            document.getElementById('dashboard-subtitle').textContent = `Live rates for ${currentCurrency.toUpperCase()} in Sri Lanka`;
+            setupBankSelector();
+            displayBestRates();
+            createOrUpdateChart();
+        }
+
+        function displayBestRates() {
+            const latestData = originalData[originalData.length - 1];
+            if (!latestData || !latestData.market_statistics) { return; }
+
+            const { people_selling, people_buying } = latestData.market_statistics;
+            
+            // Get the timestamp from database (should already be in Sri Lankan time)
+            let lastUpdatedTimestamp = null;
+            
+            // Try different possible formats of last_updated from MongoDB
+            if (latestData.last_updated) {
+                if (typeof latestData.last_updated === 'string') {
+                    lastUpdatedTimestamp = latestData.last_updated;
+                } else if (latestData.last_updated.$date) {
+                    lastUpdatedTimestamp = latestData.last_updated.$date;
+                } else if (typeof latestData.last_updated === 'object' && latestData.last_updated.getTime) {
+                    lastUpdatedTimestamp = latestData.last_updated.toISOString();
+                }
+            }
+            
+            // Fallback to data_completeness.update_timestamp if available
+            if (!lastUpdatedTimestamp) {
+                if (latestData.data_completeness?.update_timestamp) {
+                    if (typeof latestData.data_completeness.update_timestamp === 'string') {
+                        lastUpdatedTimestamp = latestData.data_completeness.update_timestamp;
+                    } else if (latestData.data_completeness.update_timestamp.$date) {
+                        lastUpdatedTimestamp = latestData.data_completeness.update_timestamp.$date;
+                    }
+                }
+            }
+
+            const bestSellingRate = people_selling?.max?.toFixed(4);
+            document.getElementById('best-selling-rate').textContent = bestSellingRate ? `LKR ${bestSellingRate}` : 'N/A';
+            document.getElementById('best-selling-bank').textContent = people_selling?.best_bank ? `at ${people_selling.best_bank}` : '';
+            const avgSellingRate = people_selling?.avg?.toFixed(4);
+            document.getElementById('avg-selling-rate').textContent = avgSellingRate ? `Avg Selling Rate: LKR ${avgSellingRate}` : '';
+
+            const bestBuyingRate = people_buying?.min?.toFixed(4);
+            document.getElementById('best-buying-rate').textContent = bestBuyingRate ? `LKR ${bestBuyingRate}` : 'N/A';
+            document.getElementById('best-buying-bank').textContent = people_buying?.best_bank ? `at ${people_buying.best_bank}` : '';
+            const avgBuyingRate = people_buying?.avg?.toFixed(4);
+            document.getElementById('avg-buying-rate').textContent = avgBuyingRate ? `Avg Buying Rate: LKR ${avgBuyingRate}` : '';
+            
+            // Display the last updated time directly from database (assuming it's already in Sri Lankan time)
+            if (lastUpdatedTimestamp) {
+                // Parse the timestamp and get current Sri Lankan time
+                const lastUpdated = dayjs(lastUpdatedTimestamp);
+                const nowSriLanka = dayjs(); // Assuming your system/browser is set to Sri Lankan time
+                
+                // Calculate time difference
+                const diffMinutes = nowSriLanka.diff(lastUpdated, 'minute');
+                const diffHours = nowSriLanka.diff(lastUpdated, 'hour');
+                const diffDays = nowSriLanka.diff(lastUpdated, 'day');
+                
+                let timeAgoText = '';
+                if (diffMinutes < 1) {
+                    timeAgoText = 'UTC time';
+                } else if (diffMinutes < 60) {
+                    timeAgoText = `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+                } else if (diffHours < 24) {
+                    timeAgoText = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                } else if (diffDays < 7) {
+                    timeAgoText = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                } else {
+                    timeAgoText = lastUpdated.format('YYYY-MM-DD');
+                }
+                
+                // Format the display - assume database timestamp is already in Sri Lankan time
+                const displayTime = lastUpdated.format('YYYY-MM-DD HH:mm');
+                document.getElementById('last-updated').textContent = 
+                    `Last updated: ${displayTime} (${timeAgoText})`;
+            } else {
+                // Fallback to using the date field
+                const dateOnly = dayjs(latestData.date);
+                document.getElementById('last-updated').textContent = 
+                    `Last updated: ${dateOnly.format('YYYY-MM-DD')}`;
+            }
+        }
+        
+        function setupBankSelector() {
+            const container = document.getElementById('bank-selector');
+            container.innerHTML = '';
+            selectedBanks = ["Hatton National Bank", "Sampath Bank","Commercial Bank", "Bank of Ceylon"]; 
+            Array.from(allBankNames).sort().forEach((bank, index) => {
+                const isChecked = selectedBanks.includes(bank);
+                const color = chartColors[index % chartColors.length];
+                container.innerHTML += `<div class="flex items-center"><input type="checkbox" id="bank-${index}" value="${bank}" ${isChecked ? 'checked' : ''} class="h-4 w-4 rounded bg-gray-700 border-gray-600" style="accent-color: ${color};"><label for="bank-${index}" class="ml-2 text-gray-300 cursor-pointer">${bank}</label></div>`;
+            });
+        }
+        
+        function setupControls() {
+            document.getElementById('rate-type-selector').addEventListener('click', e => {
+                if (e.target.tagName === 'BUTTON') {
+                    selectedRateType = e.target.dataset.rateType;
+                    document.querySelectorAll('.rate-type-btn').forEach(btn => btn.classList.remove('bg-gray-900', 'text-white'));
+                    e.target.classList.add('bg-gray-900', 'text-white');
+                    createOrUpdateChart();
+                }
+            });
+            document.getElementById('time-range-selector').addEventListener('click', e => {
+                 if (e.target.tagName === 'BUTTON') {
+                    selectedTimeRange = e.target.dataset.range;
+                    document.querySelectorAll('.time-range-btn').forEach(btn => {
+                        btn.classList.remove('bg-blue-600');
+                        btn.classList.add('bg-gray-700', 'hover:bg-gray-600');
+                    });
+                     e.target.classList.add('bg-blue-600');
+                     e.target.classList.remove('bg-gray-700', 'hover:bg-gray-600');
+                    createOrUpdateChart();
+                }
+            });
+            document.getElementById('bank-selector').addEventListener('change', e => {
+                if (e.target.type === 'checkbox') {
+                    selectedBanks = Array.from(document.querySelectorAll('#bank-selector input:checked')).map(cb => cb.value);
+                    createOrUpdateChart();
+                }
+            });
+        }
+
+        function filterDataByTimeRange(data) {
+            if (selectedTimeRange === 'all') return data;
+            const now = dayjs();
+            let startDate;
+            switch (selectedTimeRange) {
+                case '7d': startDate = now.subtract(7, 'day'); break;
+                case '1m': startDate = now.subtract(1, 'month'); break;
+                case '3m': startDate = now.subtract(3, 'month'); break;
+                case '6m': startDate = now.subtract(6, 'month'); break;
+                case '1y': startDate = now.subtract(1, 'year'); break;
+                default: return data;
+            }
+            return data.filter(d => dayjs(d.date).isAfter(startDate));
+        }
+
+        function prepareChartData() {
+            const filteredData = filterDataByTimeRange(originalData);
+            const labels = filteredData.map(d => d.date);
+            const sortedBankNames = Array.from(allBankNames).sort();
+            const datasets = selectedBanks.map(bankName => {
+                const bankIndex = sortedBankNames.indexOf(bankName);
+                const color = chartColors[bankIndex % chartColors.length];
+                const dataPoints = filteredData.map(dayData => dayData.bank_rates?.[bankName]?.[selectedRateType] || null);
+                return { label: bankName, data: dataPoints, borderColor: color, backgroundColor: `${color}33`, fill: false, tension: 0.2, borderWidth: 2, pointRadius: 1.5, pointHoverRadius: 5 };
+            });
+            return { labels, datasets };
+        }
+
+        function createOrUpdateChart() {
+            if (!originalData.length) return;
+            const { labels, datasets } = prepareChartData();
+            
+            // Mobile-friendly chart options
+            const isMobile = window.innerWidth < 768;
+            const options = { 
+                responsive: true, 
+                maintainAspectRatio: false, // Important for responsive canvas
+                scales: { 
+                    x: { 
+                        ticks: { 
+                            color: '#9ca3af',
+                            maxRotation: 0, // Avoid rotating labels on mobile
+                            autoSkip: true,
+                            maxTicksLimit: isMobile ? 4 : 10 // Show fewer ticks on mobile
+                        }, 
+                        grid: { color: '#374151' } 
+                    }, 
+                    y: { 
+                        ticks: { color: '#9ca3af' }, 
+                        grid: { color: '#374151' }, 
+                        title: { 
+                            display: true, 
+                            text: `Rate (${currentCurrency.toUpperCase()} to LKR)`, 
+                            color: '#d1d5db' 
+                        } 
+                    } 
+                }, 
+                plugins: { 
+                    legend: { 
+                        position: 'top', 
+                        labels: { 
+                            color: '#d1d5db', 
+                            usePointStyle: true, 
+                            boxWidth: 8,
+                            padding: isMobile ? 20 : 10,
+                            font: {
+                                size: isMobile ? 10 : 12
+                            }
+                        } 
+                    }, 
+                    tooltip: { 
+                        mode: 'index', 
+                        intersect: false, 
+                        backgroundColor: '#1f2937', 
+                        titleColor: '#ffffff', 
+                        bodyColor: '#d1d5db', 
+                        borderColor: '#4b5563', 
+                        borderWidth: 1 
+                    } 
+                }, 
+                interaction: { 
+                    mode: 'index', 
+                    intersect: false 
+                } 
+            };
+            
+            if (chart) {
+                chart.data.labels = labels;
+                chart.data.datasets = datasets;
+                chart.options = options;
+                chart.update();
+            } else {
+                const ctx = document.getElementById('rateChart').getContext('2d');
+                chart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: options });
+            }
+        }
+    </script>
+</body>
+</html>
