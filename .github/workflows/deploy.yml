@@ -1,31 +1,33 @@
-# Name of the workflow
-name: Deploy Frontend to GitHub Pages
+name: Deploy to Vercel
 
-# Run this workflow on every push to the main branch
 on:
   push:
-    branches:
-      - master
-
-# Grant the workflow permissions to write to the repository
-permissions:
-  contents: write
+    branches: [ main, master ]
 
 jobs:
-  deploy-frontend:
-    # Use the latest version of Ubuntu
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out your repository's code
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # Step 2: Deploy the 'public' directory to the 'gh-pages' branch
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          # The token is provided automatically by GitHub
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          # Specify the directory to publish
-          publish_dir: ./public
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
 
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy Project Artifacts
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
