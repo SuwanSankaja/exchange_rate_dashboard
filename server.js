@@ -1,48 +1,48 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const cors = require('cors');
-const path = require('path');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+// The PORT variable is no longer needed in a serverless environment
 const uri = process.env.MONGO_URI;
 const dbName = process.env.DB_NAME;
-// We now use a prefix to dynamically build the collection name
-const collectionPrefix = process.env.COLLECTION_PREFIX || 'daily_'; 
+const collectionPrefix = process.env.COLLECTION_PREFIX || 'daily_';
 
+// Validate essential environment variables
 if (!uri || !dbName) {
     console.error("Fatal: Missing required environment variables (MONGO_URI, DB_NAME).");
-    process.exit(1);
+    // In a serverless function, throwing an error is better than process.exit
+    throw new Error("Missing required environment variables.");
 }
 
 const client = new MongoClient(uri);
 let db;
 
+// Establishes a connection to the database
 async function connectToDatabase() {
+    if (db && client.topology && client.topology.isConnected()) {
+        return; // Return if connection is already established
+    }
     try {
         await client.connect();
         db = client.db(dbName);
-        console.log("Successfully connected to MongoDB and database is ready.");
+        console.log("Successfully connected to MongoDB.");
     } catch (error) {
-        console.error("Fatal: Could not connect to MongoDB.", error);
-        process.exit(1);
+        console.error("Could not connect to MongoDB.", error);
+        // Throw error to be caught by the API handler
+        throw new Error("Could not connect to the database.");
     }
 }
 
 // --- Middleware ---
-app.use(cors()); 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors());
 
 // --- API Endpoint ---
-// The endpoint now accepts a currency parameter, e.g., /api/rates/usd
 app.get('/api/rates/:currency', async (req, res) => {
-    if (!db) {
-        return res.status(503).send("Service Unavailable: Database connection not ready.");
-    }
-    
     try {
-        // Dynamically create the collection name based on the currency parameter
+        await connectToDatabase();
+        
         const currency = req.params.currency.toLowerCase();
         const collectionName = `${collectionPrefix}${currency}_rates`;
         console.log(`Fetching data from collection: ${collectionName}`);
@@ -56,14 +56,11 @@ app.get('/api/rates/:currency', async (req, res) => {
         
         res.json(data);
     } catch (e) {
-        console.error("Error fetching data from MongoDB:", e);
+        console.error("Error during API request:", e);
         res.status(500).send("Error fetching data from the database.");
     }
 });
 
-// --- Start Server ---
-connectToDatabase().then(() => {
-    app.listen(port, () => {
-        console.log(`Server running at http://localhost:${port}`);
-    });
-});
+// Export the app for Vercel to use
+module.exports = app;
+
