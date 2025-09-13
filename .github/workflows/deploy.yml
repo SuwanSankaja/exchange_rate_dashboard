@@ -1,4 +1,4 @@
-# Name of the workflow process
+# Name of the workflow
 name: Deploy Frontend to GitHub Pages
 
 # Run this workflow on every push to the main branch
@@ -6,6 +6,10 @@ on:
   push:
     branches:
       - master
+
+# Grant the workflow permissions to write to the repository
+permissions:
+  contents: write
 
 jobs:
   deploy-frontend:
