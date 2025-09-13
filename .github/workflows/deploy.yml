@@ -1,0 +1,27 @@
+# Name of the workflow
+name: Deploy Frontend to GitHub Pages
+
+# Run this workflow on every push to the main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-frontend:
+    # Use the latest version of Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check out your repository's code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Deploy the 'public' directory to the 'gh-pages' branch
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          # The token is provided automatically by GitHub
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Specify the directory to publish
+          publish_dir: ./public
+
