@@ -1,8 +1,8 @@
-# Confinix Exchange
+# Exchange Rate Tracker
 
 ## 🚀 About The Project
 
-Confinix Exchange provides a powerful and user-friendly interface to monitor the exchange rates of AUD, USD, EUR, and GBP against the Sri Lankan Rupee (LKR). Built with a modern tech stack, it offers real-time insights with historical data visualization, helping users make informed financial decisions. The entire application is containerized with Docker for seamless setup and deployment.
+Exchange Rate Tracker provides a powerful and user-friendly interface to monitor the exchange rates of AUD, USD, EUR, and GBP against the Sri Lankan Rupee (LKR). Built with a modern tech stack, it offers real-time insights with historical data visualization, helping users make informed financial decisions. The entire application is containerized with Docker for seamless setup and deployment.
 
 ### ✨ Features
 
