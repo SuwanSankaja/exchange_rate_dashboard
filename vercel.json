@@ -16,8 +16,8 @@
       "dest": "/server.js"
     },
     {
-      "src": "/confinix_logo.png",
-      "dest": "/public/confinix_logo.png"
+      "src": "/logo.png",
+      "dest": "/public/logo.png"
     },
     {
       "src": "/",
