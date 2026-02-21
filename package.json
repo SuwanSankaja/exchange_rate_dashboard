@@ -1,8 +1,13 @@
 {
+  "name": "exchange-rate-dashboard",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public --project-name=exchange-rate-dashboard"
+  },
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
     "mongodb": "^6.17.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
   }
 }
