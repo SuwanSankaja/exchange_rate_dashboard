@@ -1,98 +1,179 @@
-# Exchange Rate Tracker
+<div align="center">
 
-## 🚀 About The Project
+# 💱 Exchange Rate Tracker
 
-Exchange Rate Tracker provides a powerful and user-friendly interface to monitor the exchange rates of AUD, USD, EUR, and GBP against the Sri Lankan Rupee (LKR). Built with a modern tech stack, it offers real-time insights with historical data visualization, helping users make informed financial decisions. The entire application is containerized with Docker for seamless setup and deployment.
+### Real-time LKR exchange rates across Sri Lankan banks
 
-### ✨ Features
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-exrates.suwansankaja.com-6366f1?style=for-the-badge)](https://exrates.suwansankaja.com/)
+[![Next.js](https://img.shields.io/badge/Next.js_15-000?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://mongodb.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-* **Multi-Currency Dashboard:** Instantly switch between AUD, USD, EUR, and GBP.
+</div>
 
-* **At-a-Glance Insights:** View the day's best buying/selling rates and market averages.
+---
 
-* **Interactive Graphs:** Analyze historical trends with smooth, filterable charts.
+## ⚡ Overview
 
-* **Dynamic Filtering:** Isolate data by rate type (buy/sell), time period, and specific banks.
+Exchange Rate Tracker provides a **premium, real-time dashboard** to monitor exchange rates of **USD, AUD, EUR, and GBP** against the Sri Lankan Rupee (LKR). Compare rates across 9+ banks, analyze historical trends with interactive charts, and find the best deals — all in a beautifully crafted dark-themed UI.
 
-* **Fully Responsive:** Optimized for a seamless experience on both desktop and mobile devices.
+> 🔗 **Try it live:** [exrates.suwansankaja.com](https://exrates.suwansankaja.com/)
 
-* **Secure & Deployed:** Live and secured with an SSL certificate via Let's Encrypt.
+---
 
-### 🛠️ Built With
+## ✨ Features
 
-The project is built with a modern and robust stack:
+| Feature | Description |
+|---------|-------------|
+| 🔄 **Multi-Currency Support** | Instantly switch between USD, AUD, EUR, and GBP |
+| 📊 **Interactive Charts** | Historical trend analysis with Chart.js — filter by bank, time range, and rate type |
+| 🏦 **Bank Comparison** | Compare buying & selling rates across 9+ Sri Lankan banks |
+| 💎 **Best Rate Highlights** | Instantly see the best selling/buying rates with bank names |
+| 🌙 **Premium Dark UI** | Glassmorphism design with aurora background and micro-animations |
+| ⚡ **Edge-Cached** | CDN caching + client-side prefetching for instant currency switching |
+| 📱 **Fully Responsive** | Optimized for desktop, tablet, and mobile |
+| 🔒 **Secure** | Environment secrets encrypted via Cloudflare Workers |
 
-* **Frontend:** HTML5, Tailwind CSS, Chart.js, Day.js
+---
 
-* **Backend:** Node.js, Express.js
+## 🛠️ Tech Stack
 
-* **Database:** MongoDB
+```
+Frontend     →  Next.js 15 · React 19 · TypeScript · Chart.js · Day.js
+Styling      →  Vanilla CSS · Glassmorphism · CSS Custom Properties
+Backend      →  Next.js API Routes · MongoDB Driver
+Database     →  MongoDB Atlas
+Deployment   →  Cloudflare Workers · OpenNext Adapter
+```
 
-* **Deployment & DevOps:** Docker, Docker Compose, Nginx, Certbot
+---
 
-## 🔧 Getting Started (Local Development)
-
-To get a local copy up and running, follow these simple steps.
+## 🚀 Getting Started
 
 ### Prerequisites
 
-* You must have [**Node.js**](https://nodejs.org/) (v18+) installed.
+- [Node.js](https://nodejs.org/) v18+
+- [MongoDB Atlas](https://www.mongodb.com/atlas) account (or local MongoDB)
 
-* You must have [**Docker**](https://www.docker.com/products/docker-desktop/) and Docker Compose installed.
+### Installation
 
-### Installation & Launch
+```bash
+# 1. Clone the repository
+git clone https://github.com/SuwanSankaja/exchange_rate_dashboard.git
+cd exchange_rate_dashboard
 
-1. **Clone the repository:**
+# 2. Install dependencies
+npm install
 
-   ```bash
-   git clone [https://github.com/SuwanSankaja/exchange_rate_dashboard.git](https://github.com/SuwanSankaja/exchange_rate_dashboard.git)
-   cd exchange_rate_dashboard
-   ```
+# 3. Create environment file
+cp .env.example .env
+```
 
-2. **Create the Environment File:**
-   Create a `.env` file in the project root and populate it with the following:
+### Environment Variables
 
-   ```env
-   MONGO_URI="mongodb://mongo:27017"
-   DB_NAME="exchange_rates"
-   COLLECTION_PREFIX="daily_"
-   PORT=3000
-   ```
+Create a `.env` file in the project root:
 
-3. **Launch with Docker Compose:**
-   This command will build and start all necessary containers in the background.
+```env
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority
+DB_NAME=exchange_rates
+COLLECTION_PREFIX=daily_
+```
 
-   ```bash
-   docker compose up --build -d
-   ```
+### Run Locally
 
-4. **Access the Application:**
-   Open your browser and navigate to `http://localhost:3000`.
+```bash
+npm run dev
+```
 
-## 🚀 Deployment
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-This application is designed for easy deployment on any VPS (like a DigitalOcean Droplet) using Docker. The high-level steps involve:
+---
 
-1. Provisioning a server with the Docker Marketplace image.
+## ☁️ Deployment (Cloudflare Workers)
 
-2. Cloning the repository and setting up the `.env` file.
+This app is deployed on **Cloudflare Workers** using the [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare) adapter.
 
-3. Configuring the UFW firewall to allow SSH and Nginx traffic.
+### Quick Deploy
 
-4. Running the application stack with `docker compose up --build -d`.
+```bash
+# Build & deploy to Cloudflare
+npm run deploy
+```
 
-5. Configuring Nginx as a reverse proxy to route traffic to the application.
+### Environment Setup on Cloudflare
 
-6. Securing the domain with a free SSL certificate from Let's Encrypt.
+1. Go to **Workers & Pages** → your worker → **Settings** → **Variables and Secrets**
+2. Add `MONGO_URI` as a **Secret**
+3. `DB_NAME` and `COLLECTION_PREFIX` are set automatically via `wrangler.jsonc`
 
-## 📡 API Endpoint
+### Build Commands (for CI/CD)
 
-The backend exposes a dynamic API endpoint to retrieve data for the dashboard.
+| Command | Description |
+|---------|-------------|
+| `npx opennextjs-cloudflare build` | Build for Cloudflare Workers |
+| `npx opennextjs-cloudflare deploy` | Deploy to production |
 
-* `GET /api/rates/:currency`
+---
 
-  * **Description:** Fetches all historical rate data for a given currency.
+## 📡 API
 
-  * **URL Params:** `:currency` can be `aud`, `usd`, `eur`, or `gbp`.
+The app exposes a RESTful API for fetching exchange rate data:
 
-  * **Example:** A request to `GET /api/rates/usd` will fetch all documents from the `daily_usd_rates` collection in MongoDB.
+```
+GET /api/rates/:currency
+```
+
+| Parameter | Type | Values |
+|-----------|------|--------|
+| `currency` | `string` | `usd`, `aud`, `eur`, `gbp` |
+
+**Example:**
+
+```bash
+curl https://exrates.suwansankaja.com/api/rates/usd
+```
+
+**Response:** Array of daily rate documents with `bank_rates`, `market_statistics`, and `last_updated` fields.
+
+**Caching:** Responses are cached at Cloudflare's edge for 10 minutes (`s-maxage=600`).
+
+---
+
+## 📁 Project Structure
+
+```
+exchange_rate_dashboard/
+├── src/
+│   ├── app/
+│   │   ├── api/rates/[currency]/
+│   │   │   └── route.ts          # MongoDB API handler
+│   │   ├── globals.css            # Design system & animations
+│   │   ├── layout.tsx             # Root layout with SEO
+│   │   └── page.tsx               # Main page
+│   └── components/
+│       ├── Dashboard.tsx          # State management & data fetching
+│       ├── Header.tsx             # Animated header
+│       ├── CurrencySelector.tsx   # Currency pill selector
+│       ├── RateCards.tsx          # Best rate display cards
+│       ├── ChartSection.tsx       # Interactive chart with controls
+│       └── SkeletonLoader.tsx     # Loading state UI
+├── wrangler.jsonc                 # Cloudflare Workers config
+├── open-next.config.ts            # OpenNext adapter config
+├── next.config.ts                 # Next.js config
+└── package.json
+```
+
+---
+
+## 📄 License
+
+Distributed under the MIT License.
+
+---
+
+<div align="center">
+
+**Built with ❤️ by [Suwan Sankaja](https://github.com/SuwanSankaja)**
+
+</div>
