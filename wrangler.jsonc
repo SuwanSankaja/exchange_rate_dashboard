@@ -6,6 +6,10 @@
   "compatibility_flags": [
     "nodejs_compat_v2"
   ],
+  "vars": {
+    "DB_NAME": "exchange_rates",
+    "COLLECTION_PREFIX": "daily_"
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
