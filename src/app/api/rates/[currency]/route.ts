@@ -9,17 +9,7 @@ let cachedClient: MongoClient | null = null;
 
 async function getClient(): Promise<MongoClient> {
   if (cachedClient) {
-    try {
-      await cachedClient.db("admin").command({ ping: 1 });
-      return cachedClient;
-    } catch {
-      try {
-        await cachedClient.close();
-      } catch {
-        /* ignore */
-      }
-      cachedClient = null;
-    }
+    return cachedClient;
   }
 
   if (!uri) {
@@ -27,14 +17,20 @@ async function getClient(): Promise<MongoClient> {
   }
 
   const client = new MongoClient(uri, {
-    connectTimeoutMS: 10000,
-    serverSelectionTimeoutMS: 10000,
-    socketTimeoutMS: 15000,
+    connectTimeoutMS: 8000,
+    serverSelectionTimeoutMS: 8000,
+    socketTimeoutMS: 12000,
+    maxPoolSize: 1,
   });
   await client.connect();
   cachedClient = client;
   return client;
 }
+
+// Cache duration: 10 minutes at CDN edge, 5 minutes in browser
+const CACHE_HEADERS = {
+  "Cache-Control": "public, s-maxage=600, max-age=300, stale-while-revalidate=60",
+};
 
 export async function GET(
   _request: Request,
@@ -56,12 +52,12 @@ export async function GET(
     const db = client.db(dbName);
     const collection = db.collection(collectionName);
 
-    // Only fetch last 400 days and project only needed fields to reduce payload
+    // Only fetch last 400 days and project only needed fields
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - 400);
     const cutoffStr = cutoffDate.toISOString().split("T")[0];
 
-    const data = await collection
+    let data = await collection
       .find(
         { date: { $gte: cutoffStr } },
         {
@@ -79,8 +75,8 @@ export async function GET(
       .toArray();
 
     if (data.length === 0) {
-      // Fallback: try without date filter (in case dates are stored differently)
-      const allData = await collection
+      // Fallback: try without date filter
+      data = await collection
         .find(
           {},
           {
@@ -97,11 +93,9 @@ export async function GET(
         .sort({ date: 1 })
         .limit(400)
         .toArray();
-
-      return NextResponse.json(allData);
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: CACHE_HEADERS });
   } catch (e) {
     cachedClient = null;
     console.error("Error during API request:", e);
@@ -111,3 +105,4 @@ export async function GET(
     );
   }
 }
+

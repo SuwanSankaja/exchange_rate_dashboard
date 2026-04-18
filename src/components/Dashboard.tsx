@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import dayjs from "dayjs";
 import Header from "./Header";
 import CurrencySelector from "./CurrencySelector";
@@ -43,6 +43,11 @@ export interface DayData {
 const CURRENCIES = ["usd", "aud", "eur", "gbp"] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
+interface CurrencyCache {
+  data: DayData[];
+  banks: string[];
+}
+
 export default function Dashboard() {
   const [currency, setCurrency] = useState<Currency>("usd");
   const [data, setData] = useState<DayData[]>([]);
@@ -55,68 +60,118 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async (curr: Currency) => {
-    setLoading(true);
-    setError(null);
+  // Client-side cache to make currency switching instant
+  const cacheRef = useRef<Record<string, CurrencyCache>>({});
 
-    try {
-      const response = await fetch(`/api/rates/${curr}`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Server responded with ${response.status}: ${errorText}`
-        );
+  const processRawData = useCallback((rawData: DayData[]) => {
+    const processedData: DayData[] = rawData
+      .map((d: DayData) => ({
+        ...d,
+        date: dayjs(d.date).format("YYYY-MM-DD"),
+      }))
+      .sort(
+        (a: DayData, b: DayData) =>
+          dayjs(a.date).valueOf() - dayjs(b.date).valueOf()
+      );
+
+    const banks = new Set<string>();
+    processedData.forEach((d: DayData) => {
+      if (d.bank_rates) {
+        Object.keys(d.bank_rates).forEach((bank) => banks.add(bank));
       }
-      const rawData = await response.json();
+    });
 
-      if (!rawData || rawData.length === 0) {
-        throw new Error(`No data available for ${curr.toUpperCase()}.`);
-      }
+    return { data: processedData, banks: Array.from(banks).sort() };
+  }, []);
 
-      const processedData: DayData[] = rawData
-        .map((d: DayData) => ({
-          ...d,
-          date: dayjs(d.date).format("YYYY-MM-DD"),
-        }))
-        .sort(
-          (a: DayData, b: DayData) =>
-            dayjs(a.date).valueOf() - dayjs(b.date).valueOf()
-        );
+  const applyData = useCallback(
+    (cached: CurrencyCache) => {
+      setData(cached.data);
+      setAllBankNames(cached.banks);
 
-      const banks = new Set<string>();
-      processedData.forEach((d: DayData) => {
-        if (d.bank_rates) {
-          Object.keys(d.bank_rates).forEach((bank) => banks.add(bank));
-        }
-      });
-
-      const sortedBanks = Array.from(banks).sort();
-      setAllBankNames(sortedBanks);
-      setData(processedData);
-
-      // Set default selected banks
       const defaultBanks = [
         "Hatton National Bank",
         "Sampath Bank",
         "Commercial Bank",
         "Bank of Ceylon",
-      ].filter((b) => sortedBanks.includes(b));
+      ].filter((b) => cached.banks.includes(b));
       setSelectedBanks(
-        defaultBanks.length > 0 ? defaultBanks : sortedBanks.slice(0, 4)
+        defaultBanks.length > 0 ? defaultBanks : cached.banks.slice(0, 4)
       );
-    } catch (err) {
-      console.error(`Dashboard initialization failed for ${curr}:`, err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load data"
-      );
-    } finally {
-      setLoading(false);
+    },
+    []
+  );
+
+  const fetchCurrency = useCallback(
+    async (curr: Currency) => {
+      // Check cache first
+      if (cacheRef.current[curr]) {
+        applyData(cacheRef.current[curr]);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`/api/rates/${curr}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `Server responded with ${response.status}: ${errorText}`
+          );
+        }
+        const rawData = await response.json();
+
+        if (!rawData || rawData.length === 0) {
+          throw new Error(`No data available for ${curr.toUpperCase()}.`);
+        }
+
+        const processed = processRawData(rawData);
+        cacheRef.current[curr] = processed;
+        applyData(processed);
+      } catch (err) {
+        console.error(`Dashboard initialization failed for ${curr}:`, err);
+        setError(err instanceof Error ? err.message : "Failed to load data");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [processRawData, applyData]
+  );
+
+  // Prefetch all currencies in the background on initial load
+  const prefetchAll = useCallback(async () => {
+    for (const curr of CURRENCIES) {
+      if (!cacheRef.current[curr]) {
+        try {
+          const response = await fetch(`/api/rates/${curr}`);
+          if (response.ok) {
+            const rawData = await response.json();
+            if (rawData && rawData.length > 0) {
+              cacheRef.current[curr] = processRawData(rawData);
+            }
+          }
+        } catch {
+          // Silently fail prefetch — will retry when user switches
+        }
+      }
     }
-  }, []);
+  }, [processRawData]);
 
   useEffect(() => {
-    loadData(currency);
-  }, [currency, loadData]);
+    fetchCurrency(currency).then(() => {
+      // After initial load, prefetch the rest in the background
+      prefetchAll();
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When currency changes (after initial load), use cached data
+  useEffect(() => {
+    fetchCurrency(currency);
+  }, [currency, fetchCurrency]);
 
   const handleCurrencyChange = (curr: Currency) => {
     if (curr !== currency) {
