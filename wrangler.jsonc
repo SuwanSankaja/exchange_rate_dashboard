@@ -2,10 +2,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
   "name": "exchange-rate-dashboard",
-  "compatibility_date": "2024-12-30",
+  "compatibility_date": "2025-04-01",
   "compatibility_flags": [
-    "nodejs_compat",
-    "global_fetch_strictly_public"
+    "nodejs_compat_v2"
   ],
   "assets": {
     "directory": ".open-next/assets",

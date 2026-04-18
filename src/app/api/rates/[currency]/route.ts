@@ -26,7 +26,11 @@ async function getClient(): Promise<MongoClient> {
     throw new Error("Missing MONGO_URI environment variable");
   }
 
-  const client = new MongoClient(uri);
+  const client = new MongoClient(uri, {
+    connectTimeoutMS: 10000,
+    serverSelectionTimeoutMS: 10000,
+    socketTimeoutMS: 15000,
+  });
   await client.connect();
   cachedClient = client;
   return client;
@@ -51,12 +55,50 @@ export async function GET(
     const client = await getClient();
     const db = client.db(dbName);
     const collection = db.collection(collectionName);
-    const data = await collection.find({}).toArray();
+
+    // Only fetch last 400 days and project only needed fields to reduce payload
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 400);
+    const cutoffStr = cutoffDate.toISOString().split("T")[0];
+
+    const data = await collection
+      .find(
+        { date: { $gte: cutoffStr } },
+        {
+          projection: {
+            _id: 0,
+            date: 1,
+            bank_rates: 1,
+            market_statistics: 1,
+            last_updated: 1,
+            data_completeness: 1,
+          },
+        }
+      )
+      .sort({ date: 1 })
+      .toArray();
 
     if (data.length === 0) {
-      console.warn(
-        `No data found for currency: ${currencyLower} in collection: ${collectionName}`
-      );
+      // Fallback: try without date filter (in case dates are stored differently)
+      const allData = await collection
+        .find(
+          {},
+          {
+            projection: {
+              _id: 0,
+              date: 1,
+              bank_rates: 1,
+              market_statistics: 1,
+              last_updated: 1,
+              data_completeness: 1,
+            },
+          }
+        )
+        .sort({ date: 1 })
+        .limit(400)
+        .toArray();
+
+      return NextResponse.json(allData);
     }
 
     return NextResponse.json(data);
