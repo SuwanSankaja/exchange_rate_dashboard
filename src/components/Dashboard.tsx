@@ -62,6 +62,11 @@ export default function Dashboard() {
 
   // Client-side cache to make currency switching instant
   const cacheRef = useRef<Record<string, CurrencyCache>>({});
+  const inFlightRef = useRef<Partial<Record<Currency, Promise<CurrencyCache>>>>(
+    {}
+  );
+  const requestIdRef = useRef(0);
+  const hasPrefetchedRef = useRef(false);
 
   const processRawData = useCallback((rawData: DayData[]) => {
     const processedData: DayData[] = rawData
@@ -102,44 +107,69 @@ export default function Dashboard() {
     []
   );
 
+  const loadCurrency = useCallback(
+    async (curr: Currency) => {
+      if (cacheRef.current[curr]) {
+        return cacheRef.current[curr];
+      }
+
+      if (!inFlightRef.current[curr]) {
+        inFlightRef.current[curr] = (async () => {
+          const response = await fetch(`/api/rates/${curr}`);
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(
+              `Server responded with ${response.status}: ${errorText}`
+            );
+          }
+
+          const rawData = await response.json();
+          if (!rawData || rawData.length === 0) {
+            throw new Error(`No data available for ${curr.toUpperCase()}.`);
+          }
+
+          const processed = processRawData(rawData);
+          cacheRef.current[curr] = processed;
+          return processed;
+        })().finally(() => {
+          delete inFlightRef.current[curr];
+        });
+      }
+
+      return inFlightRef.current[curr] as Promise<CurrencyCache>;
+    },
+    [processRawData]
+  );
+
   const fetchCurrency = useCallback(
     async (curr: Currency) => {
-      // Check cache first
-      if (cacheRef.current[curr]) {
-        applyData(cacheRef.current[curr]);
-        setLoading(false);
-        setError(null);
-        return;
-      }
+      const requestId = ++requestIdRef.current;
 
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(`/api/rates/${curr}`);
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `Server responded with ${response.status}: ${errorText}`
-          );
-        }
-        const rawData = await response.json();
+        const processed = await loadCurrency(curr);
 
-        if (!rawData || rawData.length === 0) {
-          throw new Error(`No data available for ${curr.toUpperCase()}.`);
+        if (requestId !== requestIdRef.current) {
+          return;
         }
 
-        const processed = processRawData(rawData);
-        cacheRef.current[curr] = processed;
         applyData(processed);
       } catch (err) {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
         console.error(`Dashboard initialization failed for ${curr}:`, err);
         setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     },
-    [processRawData, applyData]
+    [loadCurrency, applyData]
   );
 
   // Prefetch all currencies in the background on initial load
@@ -147,30 +177,21 @@ export default function Dashboard() {
     for (const curr of CURRENCIES) {
       if (!cacheRef.current[curr]) {
         try {
-          const response = await fetch(`/api/rates/${curr}`);
-          if (response.ok) {
-            const rawData = await response.json();
-            if (rawData && rawData.length > 0) {
-              cacheRef.current[curr] = processRawData(rawData);
-            }
-          }
+          await loadCurrency(curr);
         } catch {
           // Silently fail prefetch — will retry when user switches
         }
       }
     }
-  }, [processRawData]);
+  }, [loadCurrency]);
 
   useEffect(() => {
-    fetchCurrency(currency).then(() => {
-      // After initial load, prefetch the rest in the background
-      prefetchAll();
+    void fetchCurrency(currency).then(() => {
+      if (!hasPrefetchedRef.current) {
+        hasPrefetchedRef.current = true;
+        void prefetchAll();
+      }
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // When currency changes (after initial load), use cached data
-  useEffect(() => {
-    fetchCurrency(currency);
   }, [currency, fetchCurrency]);
 
   const handleCurrencyChange = (curr: Currency) => {
