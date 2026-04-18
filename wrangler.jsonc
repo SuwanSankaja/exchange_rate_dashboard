@@ -7,8 +7,7 @@
     "nodejs_compat_v2"
   ],
   "vars": {
-    "DB_NAME": "exchange_rates",
-    "COLLECTION_PREFIX": "daily_"
+    "EXCHANGE_RATE_API_BASE_URL": "https://exchange-rate-api.suwan-sankaja.workers.dev"
   },
   "assets": {
     "directory": ".open-next/assets",
